@@ -13,6 +13,13 @@ public class ProjectileMover : MonoBehaviour
     [SerializeField]
     private float lifeTime = 3.0f;
 
+    [Header("피격 판정")]
+    [SerializeField]
+    private float hitRadius = 0.15f;
+
+    [SerializeField]
+    private LayerMask hitLayerMask = ~0;
+
     private float elapsedTime = 0.0f;
 
     private bool isInitialized = false;
@@ -58,7 +65,23 @@ public class ProjectileMover : MonoBehaviour
     private void Update()
     {
 
-        transform.position += moveDirection * moveSpeed * Time.deltaTime;
+        if (TryHitOverlappedTarget() == true)
+        {
+
+            return;
+
+        }
+
+        Vector3 movement = moveDirection * moveSpeed * Time.deltaTime;
+
+        if (TryHitMovingTarget(movement) == true)
+        {
+
+            return;
+
+        }
+
+        transform.position += movement;
 
         elapsedTime += Time.deltaTime;
 
@@ -68,6 +91,127 @@ public class ProjectileMover : MonoBehaviour
             Destroy(gameObject);
 
         }
+
+    }
+
+    private bool TryHitOverlappedTarget()
+    {
+
+        Collider[] colliders = Physics.OverlapSphere(
+            transform.position,
+            hitRadius,
+            hitLayerMask,
+            QueryTriggerInteraction.Collide
+        );
+
+        for (int i = 0; i < colliders.Length; i++)
+        {
+
+            TargetDrone targetDrone = colliders[i].GetComponentInParent<TargetDrone>();
+
+            if (targetDrone == null)
+            {
+
+                continue;
+
+            }
+
+            if (targetDrone.IsActive == false)
+            {
+
+                continue;
+
+            }
+
+            targetDrone.TakeHit();
+
+            Destroy(gameObject);
+
+            return true;
+
+        }
+
+        return false;
+
+    }
+
+    private bool TryHitMovingTarget(Vector3 movement)
+    {
+
+        float distance = movement.magnitude;
+
+        if (distance <= 0.0001f)
+        {
+
+            return false;
+
+        }
+
+        RaycastHit[] hits = Physics.SphereCastAll(
+            transform.position,
+            hitRadius,
+            moveDirection,
+            distance,
+            hitLayerMask,
+            QueryTriggerInteraction.Collide
+        );
+
+        TargetDrone hitTarget = null;
+        RaycastHit selectedHit = new RaycastHit();
+        float closestDistance = float.MaxValue;
+
+        for (int i = 0; i < hits.Length; i++)
+        {
+
+            TargetDrone targetDrone = hits[i].collider.GetComponentInParent<TargetDrone>();
+
+            if (targetDrone == null)
+            {
+
+                continue;
+
+            }
+
+            if (targetDrone.IsActive == false)
+            {
+
+                continue;
+
+            }
+
+            if (hits[i].distance < closestDistance)
+            {
+
+                closestDistance = hits[i].distance;
+                selectedHit = hits[i];
+                hitTarget = targetDrone;
+
+            }
+
+        }
+
+        if (hitTarget == null)
+        {
+
+            return false;
+
+        }
+
+        transform.position = selectedHit.point;
+
+        hitTarget.TakeHit();
+
+        Destroy(gameObject);
+
+        return true;
+
+    }
+
+    private void OnDrawGizmosSelected()
+    {
+
+        Gizmos.color = Color.yellow;
+        Gizmos.DrawWireSphere(transform.position, hitRadius);
 
     }
 

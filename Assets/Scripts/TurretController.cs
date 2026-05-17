@@ -3,9 +3,9 @@ using UnityEngine;
 public class TurretController : MonoBehaviour
 {
 
-    [Header("타겟")]
+    [Header("타겟 스포너")]
     [SerializeField]
-    private Transform target;
+    private TargetDroneSpawner targetSpawner;
 
     [Header("포탑 회전축")]
     [SerializeField]
@@ -61,17 +61,21 @@ public class TurretController : MonoBehaviour
     private void Update()
     {
 
-        if (IsReferenceMissing())
+        Transform targetTransform = GetCurrentTargetTransform();
+
+        if (IsReferenceMissing(targetTransform))
         {
 
+            IsAimed = false;
+            CurrentAimAngle = 180.0f;
             return;
 
         }
 
-        RotateYaw();
-        RotatePitch();
+        RotateYaw(targetTransform);
+        RotatePitch(targetTransform);
 
-        IsAimed = CheckAim();
+        IsAimed = CheckAim(targetTransform);
 
         if (IsAimed == true)
         {
@@ -82,10 +86,40 @@ public class TurretController : MonoBehaviour
 
     }
 
-    private bool IsReferenceMissing()
+    private Transform GetCurrentTargetTransform()
     {
 
-        if (target == null)
+        if (targetSpawner == null)
+        {
+
+            return null;
+
+        }
+
+        TargetDrone currentTarget = targetSpawner.CurrentTarget;
+
+        if (currentTarget == null)
+        {
+
+            return null;
+
+        }
+
+        if (currentTarget.IsActive == false)
+        {
+
+            return null;
+
+        }
+
+        return currentTarget.AimPoint;
+
+    }
+
+    private bool IsReferenceMissing(Transform targetTransform)
+    {
+
+        if (targetTransform == null)
         {
 
             return true;
@@ -124,10 +158,10 @@ public class TurretController : MonoBehaviour
 
     }
 
-    private void RotateYaw()
+    private void RotateYaw(Transform targetTransform)
     {
 
-        Vector3 directionToTarget = target.position - yawPivot.position;
+        Vector3 directionToTarget = targetTransform.position - yawPivot.position;
 
         directionToTarget.y = 0.0f;
 
@@ -148,10 +182,10 @@ public class TurretController : MonoBehaviour
 
     }
 
-    private void RotatePitch()
+    private void RotatePitch(Transform targetTransform)
     {
 
-        Vector3 worldDirectionToTarget = target.position - pitchPivot.position;
+        Vector3 worldDirectionToTarget = targetTransform.position - pitchPivot.position;
 
         Vector3 localDirectionToTarget = yawPivot.InverseTransformDirection(worldDirectionToTarget);
 
@@ -178,10 +212,10 @@ public class TurretController : MonoBehaviour
 
     }
 
-    private bool CheckAim()
+    private bool CheckAim(Transform targetTransform)
     {
 
-        Vector3 directionToTarget = target.position - muzzlePoint.position;
+        Vector3 directionToTarget = targetTransform.position - muzzlePoint.position;
 
         if (directionToTarget.sqrMagnitude <= 0.0001f)
         {
@@ -259,11 +293,13 @@ public class TurretController : MonoBehaviour
         Gizmos.color = Color.red;
         Gizmos.DrawRay(muzzlePoint.position, muzzlePoint.forward * 3.0f);
 
-        if (target != null)
+        Transform targetTransform = GetCurrentTargetTransform();
+
+        if (targetTransform != null)
         {
 
             Gizmos.color = Color.green;
-            Gizmos.DrawLine(muzzlePoint.position, target.position);
+            Gizmos.DrawLine(muzzlePoint.position, targetTransform.position);
 
         }
 
